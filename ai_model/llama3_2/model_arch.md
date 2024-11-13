@@ -23,6 +23,9 @@
 
 ## Hardware
 
-Training Time
-- Pretraining : 11B: 147K, 90B: 
+- Training Time (H100 Hours)
+    - Pretraining: 11B: 147K, 90B: 885K
+    - Annealing  : 11B:  98K, 90B: 885K
+    - SFT        : 11B: 896 , 90B: 3072
+    - RLHF       : 11B: 224 , 90B: 2048
 
