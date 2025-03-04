@@ -87,3 +87,101 @@ training data:
 
 
 - pre-train data: 14.8T tokens
+
+
+
+#### model architecture
+
+- 671B total params, 37B activated params.
+    - activated params 36.7B = 0.9B for embedding + 0.9B for output Head + 34.9B for transformer layers
+
+- layers:
+    - input embedding layer
+    - 61 Transformer layers
+        - 0-2 layers: ffn
+        - 3-61 layers: moe
+    - output embedding layer
+
+
+on TP8 ckpt:
+- input embedding(embed.weight): [16160, 7168] (16160*7168*8=0.9B)
+- output embedding(head.weight): [16160, 7168] (16160*7168*8=0.9B)
+- transformer layers:
+    - 0-2 layers: 86.1e6 params/layer
+        - attn: 36.6e6 params
+            - wq: 15.7e6
+                - a: scale [12,56] weight [1536,7168]
+                - b: scale [24,12] weight [3072,1536]
+            - wkv: 6.2e6
+                - a: scale [5,56] weight [576,7168]
+                - b: scale [32,4] weight [4096,512]
+            - wo: scale [56,16] weight [7168,2048]
+            - kv_norm: [512]
+            - q_norm: [1536]
+        - attn_norm: [7168]
+        - ffn: 49.5e6 params
+            - w1: scale [18,56] weight [2304,7168]
+            - w2: scale [56,18] weight [7168,2304]
+            - w3: scale [18,56] weight [2304,7168]
+        - ffn_norm: [7168]
+    - 3-60 layers: 1453.3e6 params/layer
+        - attn:36.6e6 params (same as 0-2 layers)
+            - wq: 15.7e6
+                - a: scale [12,56] weight [1536,7168]
+                - b: scale [24,12] weight [3072,1536]
+            - wkv: 6.2e6
+                - a: scale [5,56] weight [576,7168]
+                - b: scale [32,4] weight [4096,512]
+            - wo: scale [56,16] weight [7168,2048]
+            - kv_norm: [512]
+            - q_norm: [1536]
+        - ffn: 1416.7e6 params
+            - experts[i:i+32]: 1409.37e6 params
+                - each [expert i]: 44e6 params
+                    - w1: scale [16,56] weight [2048,7168]
+                    - w2: scale [56,16] weight [7168,2048]
+                    - w3: scale [16,56] weight [2048,7168]
+            - shared_experts: 5.5e6 params
+                - w1: scale [2,56] weight [256,7168]
+                - w2: scale [56,2] weight [7168,256]
+                - w3: scale [2,56] weight [256,7168]
+            - gate: bias [256] weight [256,7168]
+        - ffn_norm: [7168]
+
+
+for each token, activate:
+- input embedding: 0.9B
+- output embedding: 0.9B
+- transformer layers:
+    - 0-2 layers: 86.1e6 params/layer * 8TP
+    - 3-60 layers: 87.9e6 params/layer
+        - attn:36.6e6 params (same as 0-2 layers) * 8TP
+        - ffn: 51.3e6 params
+            - experts[i:i+32]: 44e6 params(*)
+                - each [expert i]: 44e6 params
+                    - w1: scale [16,56] weight [2048,7168]
+                    - w2: scale [56,16] weight [7168,2048]
+                    - w3: scale [16,56] weight [2048,7168]
+            - shared_experts: 5.5e6 params
+                - w1: scale [2,56] weight [256,7168]
+                - w2: scale [56,2] weight [7168,256]
+                - w3: scale [2,56] weight [256,7168]
+            - gate: bias [256] weight [256,7168]
+        - ffn_norm: [7168]
+
+* total activate 8 experts, so for TP=8 case, each TP candidate average activate 1 expert.
+
+
+for each expert: 
+- w1+w2+w3=44e6 params
+- 58 moe layers -> total 44e6*58=2.552B params
+shared export: 2.552B params
+
+common params:
+- 0-2 layers: 86.1e6 params/layer * 8TP
+- 3-60 layers.attn: 36.6e6 params * 8TP
+- total: (86.1e6*3+36.6e6*58)*8=19B
+
+for each TP candidate:
+- activate 1 expert -> 44e6 params
+- activate 8 experts -> 44e6*8=352e6 params
