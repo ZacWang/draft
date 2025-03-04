@@ -90,6 +90,34 @@ decode: 168e9/(14800*3600*24) = 131.4 台
 
 实际场景估计会在这两种配置之间做动态调整。
 
+一个估计，对于 3:1 的配比，12 node prefill + 18 node decode，平均吞吐：
+- 73.7k tps input per node, 14.8k tps output per node
+- 12 * 73.7k = 884.4k tps input per 12 node, 18 * 14.8k = 266.4k tps output per 18 node
+- 在这个完整系统下：884.4k / 30 = 29.48k tokens/s input per node, 266.4k / 30 = 8.88k tokens/s output per node
+
+合计 38.36k tokens/s
+
+
+DeepSeek R1 每个 token 激活 37B tokens。
+
+对于 output tps:
+- 14.8k tps per node, 37b param * 14.8k token/s * 2 flops/token/param = 1.095e15 flops/s = 1.095 petaflops
+- H800 FP8 Tensor Core Dense: 1979 tflops * 8 = 15832 tflops = 15.832 petaflops
+    - approx. since deepseek says:
+        - matrix multiplications and dispatch transmissions adopt the FP8 format
+        - core MLA computations and combine transmissions use the BF16 format
+- MFU: 1.095/15.832 = 6.9%
+(7%-14%)
+
+对于 input tps:
+- 73.7k tps per node
+- 去掉 cache : 73.7k * (1-0.56) = 32.4k token/s input per node
+- 去掉 cache 后，MFU: 
+    - 32.4k token/s * 37b param * 2 flops/token/param = 2.4e15 flops/s = 2.4 petaflops
+    - MFU: 2.4/15.832 = 15.2%
+(15%-30%)
+> 1 petaFLOPS = 1e15 flops, 1 teraFLOPS = 1e12 flops
+> 1b tokens = 1e9 tokens
 
 
 
