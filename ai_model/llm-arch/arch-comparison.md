@@ -183,4 +183,28 @@ Qwen3 0.6B 相比于 Llama3 1B，整体更小，资源消耗更少，看起来�
 ![kimi k2 vs ds v3/r1](kimi-k2-vs-deepseek-v3.png)
 
 
+## 9. GPT-OSS
 
+Sebastian Raschka 也对比了 GPT-OSS 的信息。
+整体结构相似，主要区别在于：
+- 更宽: 2880 vs 768 (intermediate hidden layer)
+- 更少专家 128 vs 32
+- 专家更大 (activate 4 expert/token, total 3B activate)
+- 24 transformer block (vs 48)
+- more heads: 64 vs 32
+
+![GPT-OSS vs Qwen3](gpt-oss-vs-qwen3.png)
+
+
+其他细节：
+- 使用了 attn bias
+- 交替使用 sliding window 和 全连接层？
+- 改进的 swiglu
+- YaRN context 扩展
+- 移除 RMSNorm 的 bias
+- 去除 QK norm，以及 attention softcap?
+
+
+训练成本：
+- gpt-oss-120b: 2_100_000 H100 hours.
+- gpt-oss-120b: 210_000 H100 hours.
