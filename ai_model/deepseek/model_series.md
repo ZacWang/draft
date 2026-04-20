@@ -175,7 +175,7 @@ for each token, activate:
 for each expert: 
 - w1+w2+w3=44e6 params
 - 58 moe layers -> total 44e6*58=2.552B params
-shared export: 2.552B params
+shared expert: 2.552B params
 
 common params:
 - 0-2 layers: 86.1e6 params/layer * 8TP

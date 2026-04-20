@@ -207,4 +207,4 @@ Sebastian Raschka 也对比了 GPT-OSS 的信息。
 
 训练成本：
 - gpt-oss-120b: 2_100_000 H100 hours.
-- gpt-oss-120b: 210_000 H100 hours.
+- gpt-oss-20b: 210_000 H100 hours.
