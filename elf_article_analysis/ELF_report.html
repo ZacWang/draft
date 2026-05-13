@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>ELF: Embedded Language Flows 读解报告</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      white-space: pre-wrap;
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">ELF: Embedded Language Flows 读解报告</h1>
+</header>
+<h1 id="elf-embedded-language-flows-读解报告">ELF: Embedded Language
+Flows 读解报告</h1>
+<p>面向对象：AI 方向初学者<br />
+整理日期：2026-05-13<br />
+依据材料：机器之心文章、ELF 论文、官方 GitHub README</p>
+<h2 id="摘要">摘要</h2>
+<p>ELF 的全称是 <strong>Embedded Language
+Flows</strong>，中文可译为“嵌入式语言流”。它是一类基于 <strong>Flow
+Matching</strong> 的连续扩散语言模型。</p>
+<p>这项工作的核心结论是：<strong>连续扩散语言模型并不是走不通。只要把生成过程尽量保持在连续的
+contextual embedding 空间里，并且只在最后一步离散化成
+token，连续路线也可以在扩散语言模型赛道里取得很强效果。</strong></p>
+<p>它的创新不是“第一次把扩散模型用于语言”，而是重新设计了连续扩散语言模型里最关键的接口问题：</p>
+<blockquote>
+<p>文本最终必须输出离散 token，但生成过程是否必须一直受 token
+空间约束？</p>
+</blockquote>
+<p>ELF 的回答是：不必。中间过程可以在连续 embedding
+空间里完成，最后一步再翻译成 token。</p>
+<h2 id="1-背景为什么语言扩散模型难做">1.
+背景：为什么语言扩散模型难做</h2>
+<p>扩散模型在图像、视频、音频生成中很成功，因为这些数据天然可以表示为连续数值。比如图像可以看作像素矩阵或
+latent 向量，模型可以方便地做：</p>
+<pre class="text"><code>干净图像 -&gt; 加噪 -&gt; 噪声
+噪声 -&gt; 去噪 -&gt; 干净图像</code></pre>
+<p>但语言不同。语言表面上是离散 token：</p>
+<pre class="text"><code>我 喜欢 机器 学习</code></pre>
+<p>模型词表里只有一个个编号，例如
+<code>我=101</code>、<code>喜欢=2387</code>。token
+之间没有“半个我”“三分之一喜欢”这种连续状态。</p>
+<p>这就造成一个基本矛盾：</p>
+<ul>
+<li>扩散/Flow 模型擅长连续空间。</li>
+<li>文本输出必须是离散 token。</li>
+</ul>
+<p>过去的扩散语言模型大致分成两条路线：</p>
+<table>
+<thead>
+<tr>
+<th>路线</th>
+<th>代表思路</th>
+<th>扩散过程主要发生在哪里</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>离散 DLM</td>
+<td>MASK、离散类别分布、token 替换</td>
+<td>token / MASK / categorical space</td>
+</tr>
+<tr>
+<td>连续 DLM</td>
+<td>token embedding、simplex、latent 表示</td>
+<td>embedding 或连续松弛空间</td>
+</tr>
+</tbody>
+</table>
+<p>ELF 属于第二条路线，但它对“连续”做得更彻底。</p>
+<h2 id="2-初学者需要先理解token-空间和-embedding-空间">2.
+初学者需要先理解：token 空间和 embedding 空间</h2>
+<h3 id="21-token-空间是离散的">2.1 token 空间是离散的</h3>
+<p>token 空间像一个词典。每个词或子词都有一个编号：</p>
+<pre class="text"><code>token id:  [1287, 4269, 1523, ...]</code></pre>
+<p>编号之间没有自然的平滑路径。<code>1287</code> 和 <code>1288</code>
+不一定语义相近。</p>
+<h3 id="22-embedding-空间是连续的">2.2 embedding 空间是连续的</h3>
+<p>embedding 是一串实数向量：</p>
+<pre class="text"><code>token embedding: [0.13, -0.42, 1.07, 0.08, ...]</code></pre>
+<p>向量可以加噪声、插值、移动和去噪。比如从一个随机向量逐步移动到一个代表句子语义的向量，是数学上自然的事情。</p>
+<p>因此，所有 Transformer 语言模型内部都会用
+embedding。问题不在于“有没有 embedding”，而在于：</p>
+<blockquote>
+<p>扩散过程本身操作的是 token 状态，还是自由连续向量？</p>
+</blockquote>
+<h2 id="3-之前的-dlm-是怎么做的">3. 之前的 DLM 是怎么做的</h2>
+<h3 id="31-离散-dlm扩散变量还是-token">3.1 离散 DLM：扩散变量还是
+token</h3>
+<p>以 masked diffusion language model 为例，它会把原句逐步 mask
+掉，再训练模型恢复：</p>
+<pre class="text"><code>原句：我 喜欢 机器 学习
+加噪：我 [MASK] 机器 [MASK]
+再噪：[MASK] [MASK] 机器 [MASK]</code></pre>
+<p>训练目标类似：</p>
+<pre class="text"><code>输入：我 [MASK] 机器 [MASK]
+输出：喜欢、学习</code></pre>
+<p>这类模型内部当然也会把 token id 变成 embedding，因为 Transformer
+只能处理向量。但扩散变量本身仍是 token、MASK 或词表上的类别分布。</p>
+<h3 id="32-早期连续-dlm用了-embedding但中途常被词表拉住">3.2 早期连续
+DLM：用了 embedding，但中途常被词表拉住</h3>
+<p>另一类方法会做：</p>
+<pre class="text"><code>token -&gt; embedding -&gt; 加高斯噪声 -&gt; 去噪 embedding</code></pre>
+<p>这看上去和 ELF 很像。但很多前人方法会在中间步骤加入 token
+级约束，例如：</p>
+<ul>
+<li>每一步都预测词表分布，用 cross entropy 监督；</li>
+<li>把中间向量 round 到最近的 token embedding；</li>
+<li>用额外 loss 让中间状态贴近某个合法 token；</li>
+<li>在 simplex 或 one-hot
+的连续松弛空间里做，但状态仍接近词表分布。</li>
+</ul>
+<p>所以它们“用了 embedding”，但生成轨迹经常像这样：</p>
+<pre class="text"><code>连续向量 -&gt; 检查它像不像某个 token -&gt; 再继续去噪</code></pre>
+<p>ELF 认为这种中途离散化或 token 监督会限制连续扩散模型的自由度。</p>
+<h3 id="33-latent-diffusion-lm连续-latent但通常需要单独-decoder">3.3
+latent diffusion LM：连续 latent，但通常需要单独 decoder</h3>
+<p>还有一些方法把文本编码成 latent，再在 latent 空间扩散：</p>
+<pre class="text"><code>token -&gt; encoder -&gt; latent
+latent diffusion
+latent -&gt; separate decoder -&gt; token</code></pre>
+<p>这条路也在连续空间里做生成，但通常要额外训练一个 decoder，把 latent
+还原成文本。ELF 的设计目标之一就是避免这个额外模块。</p>
+<h2 id="4-elf-的生成过程为什么是在连续-embedding-空间">4. ELF
+的生成过程为什么是在连续 embedding 空间</h2>
+<p>ELF 的默认做法是先用一个冻结的 T5 encoder，把文本变成 contextual
+embeddings。这里的 contextual embedding 不只是单个 token
+的查表向量，而是带上下文信息的连续表示。</p>
+<p>训练时，给定干净 embedding <code>x</code> 和高斯噪声
+<code>epsilon</code>，ELF 构造连续中间状态：</p>
+<pre class="text"><code>z_t = t * x + (1 - t) * epsilon</code></pre>
+<p>其中：</p>
+<ul>
+<li><code>t=0</code> 时，<code>z_t</code> 接近纯噪声；</li>
+<li><code>t=1</code> 时，<code>z_t</code> 接近干净文本 embedding；</li>
+<li>中间的 <code>z_t</code> 都是实数向量，不是 token id。</li>
+</ul>
+<p>采样时，ELF 从随机噪声开始，沿着模型学到的速度场逐步走向干净
+embedding：</p>
+<pre class="text"><code>z0: 高斯噪声向量
+z1: 稍微像文本 embedding 的向量
+z2: 更像文本 embedding 的向量
+...
+zt: 接近干净文本 embedding
+final: decode 成 token</code></pre>
+<p>在最后一步之前，ELF 不做以下操作：</p>
+<ul>
+<li>不把中间状态 <code>argmax</code> 成 token；</li>
+<li>不每一步预测词表分布；</li>
+<li>不每一步用 token-level cross entropy 监督；</li>
+<li>不用 nearest-neighbor rounding 强行贴近 token embedding。</li>
+</ul>
+<p>这就是“生成过程在连续 embedding 空间”的含义。</p>
+<p>官方仓库还给出了一个生成轨迹示意：随着时间 <code>t</code> 从 0 走到
+1，文本从不成形的预测逐步被修正为更流畅的句子。这张图不是说模型每一步都已经输出最终
+token，而是用可视化方式展示连续去噪过程带来的文本可读性提升。</p>
+<p><img src="assets/elf_generation.gif"
+alt="ELF denoising trajectory" /></p>
+<h2 id="5-elf-的整体流程">5. ELF 的整体流程</h2>
+<p>官方仓库中的概念图展示了 ELF 的核心路径：橙色点表示连续 embedding
+空间中的数据，紫色轨迹表示从噪声流向干净 embedding
+的去噪过程，离散化只发生在最后一步。</p>
+<p><img src="assets/elf_teaser.gif"
+alt="ELF conceptual illustration" /></p>
+<pre class="mermaid"><code>flowchart LR
+    A[&quot;文本 token&quot;] --&gt; B[&quot;T5 encoder&quot;]
+    B --&gt; C[&quot;干净 contextual embedding x&quot;]
+    C --&gt; D[&quot;加噪得到 z_t&quot;]
+    D --&gt; E[&quot;ELF denoise 模式&lt;br/&gt;Flow Matching / MSE&quot;]
+    E --&gt; F[&quot;连续 embedding 逐步变干净&quot;]
+    F --&gt; G[&quot;最后一步 ELF decode 模式&quot;]
+    G --&gt; H[&quot;unembedding&quot;]
+    H --&gt; I[&quot;输出 token&quot;]</code></pre>
+<p>ELF 的网络有两种模式：</p>
+<table>
+<thead>
+<tr>
+<th>模式</th>
+<th>发生时间</th>
+<th>学习目标</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>denoise</td>
+<td>大多数中间步骤</td>
+<td>预测干净 embedding，用 MSE loss</td>
+</tr>
+<tr>
+<td>decode</td>
+<td>最后一步</td>
+<td>映射回 token，用 cross entropy loss</td>
+</tr>
+</tbody>
+</table>
+<p>训练时约 80% 的样本用于 denoise，20% 用于
+decode。两个模式共用同一个网络，只靠 mode token 区分当前任务。</p>
+<h2 id="6-相比前人elf-的核心创新点">6. 相比前人，ELF 的核心创新点</h2>
+<h3 id="61-把离散化推迟到最后一步">6.1 把离散化推迟到最后一步</h3>
+<p>这是最关键的创新。前人很多连续 DLM 在中途就反复和 token
+空间发生关系。ELF 则尽量保持中间轨迹自由连续：</p>
+<pre class="text"><code>前人很多方法：
+embedding -&gt; 去噪 -&gt; token 约束 -&gt; 去噪 -&gt; token 约束 -&gt; ... -&gt; token
+
+ELF：
+embedding -&gt; 去噪 -&gt; 去噪 -&gt; 去噪 -&gt; ... -&gt; 最后一次变 token</code></pre>
+<p>这让 Flow Matching 能更像在图像生成中那样工作。</p>
+<h3 id="62-不需要单独-decoder">6.2 不需要单独 decoder</h3>
+<p>latent diffusion language model 往往需要额外 decoder。ELF
+用同一个网络承担 denoiser 和 decoder 两个角色：</p>
+<pre class="mermaid"><code>flowchart TD
+    N[&quot;同一个 ELF 网络&quot;] --&gt; D1[&quot;denoise 模式&lt;br/&gt;连续空间去噪&quot;]
+    N --&gt; D2[&quot;decode 模式&lt;br/&gt;最终转成 token&quot;]</code></pre>
+<p>这样系统更简单，也避免额外训练阶段。</p>
+<h3 id="63-使用-continuous-time-flow-matching">6.3 使用 continuous-time
+Flow Matching</h3>
+<p>ELF 不是传统 DDPM 式语言扩散，而是用连续时间 Flow
+Matching。直观理解，它学习的是从噪声流向干净 embedding 的“速度场”。</p>
+<p>这带来的好处是：可以自然使用 ODE/SDE
+sampler，并且更接近现代图像/视频生成里的 flow-based 设计。</p>
+<h3 id="64-更自然地使用-cfg-和-self-conditioning">6.4 更自然地使用 CFG
+和 self-conditioning</h3>
+<p>CFG 在图像扩散里很重要，用来控制生成质量和多样性。但在离散 token
+空间里，CFG 不够自然。</p>
+<p>ELF 中间状态是连续向量，所以 CFG 更容易搬过来。论文还把
+self-conditioning 作为条件信号：模型上一轮预测的干净
+embedding，会帮助下一轮预测。</p>
+<h2 id="7-系统级实验结果">7. 系统级实验结果</h2>
+<p>官方仓库给出的系统级对比如下：</p>
+<p><img src="assets/elf_sys_compare.jpg"
+alt="ELF system comparison" /></p>
+<p>图中要点可以概括为：</p>
+<ul>
+<li>ELF-B 约 105M 参数；</li>
+<li>在 OpenWebText 无条件生成上，32 步 SDE 采样达到约
+<code>Gen. PPL 24.1</code>；</li>
+<li>使用约 <code>45.2B</code> effective training tokens；</li>
+<li>对比的许多 DLM baseline 使用 <code>500B+</code> token 量级；</li>
+<li>ELF 不依赖额外 distillation，也能在少步采样下取得很强结果。</li>
+</ul>
+<p>需要注意：机器之心原文中写到“320 步采样达到困惑度 24”，但论文和官方
+README 均为 <strong>32 steps</strong>。这里应以论文和官方 README
+为准。</p>
+<h2 id="8-这份工作的核心结论">8. 这份工作的核心结论</h2>
+<p>ELF
+想回答的问题不是“扩散语言模型有没有人做过”。这个方向此前已经有很多工作。ELF
+真正关心的是：</p>
+<blockquote>
+<p>连续扩散语言模型过去效果不如离散
+DLM，是因为语言本质上离散，还是因为连续路线设计得不够好？</p>
+</blockquote>
+<p>论文的答案是：连续路线并不是天然不行。</p>
+<p>更具体地说：</p>
+<ol type="1">
+<li>如果中间生成轨迹尽量保持在连续 contextual embedding 空间；</li>
+<li>如果只在最后一步把 embedding 离散化成 token；</li>
+<li>如果用共享权重网络同时完成去噪和最终解码；</li>
+<li>如果引入 Flow Matching、self-conditioning、CFG 等连续生成技术；</li>
+</ol>
+<p>那么连续 DLM 可以在中等规模实验中超过多种离散和连续 DLM
+baseline。</p>
+<h2 id="9-初学者版总结">9. 初学者版总结</h2>
+<p>可以用三个模型类比来理解：</p>
+<table>
+<thead>
+<tr>
+<th>模型范式</th>
+<th>类比</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>自回归 GPT</td>
+<td>从左到右逐字打字</td>
+</tr>
+<tr>
+<td>离散 DLM</td>
+<td>在一排空格里反复填词、擦掉、再填</td>
+</tr>
+<tr>
+<td>ELF</td>
+<td>先形成一团连续的“句子语义草稿”，不断修清楚，最后翻译成文字</td>
+</tr>
+</tbody>
+</table>
+<p>ELF 的核心差异是：</p>
+<pre class="text"><code>前人往往在生成过程中反复回到 token/词表空间；
+ELF 尽量把整个生成过程留在连续 embedding 空间；
+最后一步才输出 token。</code></pre>
+<p>因此，ELF 的意义不是证明它已经能替代 GPT、Claude 或 Gemini
+这类大规模自回归模型，而是证明：</p>
+<blockquote>
+<p>在扩散语言模型这个研究赛道里，连续 embedding
+路线重新变得有竞争力。</p>
+</blockquote>
+<h2 id="10-资料来源">10. 资料来源</h2>
+<ul>
+<li>机器之心文章：<a
+href="https://mp.weixin.qq.com/s/7x8w_2Ov-lpSEPRgqxLZBQ">https://mp.weixin.qq.com/s/7x8w_2Ov-lpSEPRgqxLZBQ</a></li>
+<li>论文：ELF: Embedded Language Flows, arXiv:2605.10938, <a
+href="https://arxiv.org/abs/2605.10938">https://arxiv.org/abs/2605.10938</a></li>
+<li>官方代码仓库：<a
+href="https://github.com/lillian039/ELF">https://github.com/lillian039/ELF</a></li>
+<li>本地材料：
+<ul>
+<li><code>article_text.txt</code></li>
+<li><code>ELF_Embedded_Language_Flows.pdf</code></li>
+<li><code>ELF_README.md</code></li>
+</ul></li>
+</ul>
+</body>
+</html>
